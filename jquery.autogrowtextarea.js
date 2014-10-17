@@ -15,47 +15,87 @@
  * Date: October 15, 2012
  */
 
-jQuery.fn.autoGrow = function() {
-	return this.each(function() {
+/*
+ * Modified by Kim Grönqvist @ 2014-10-17
+ *
+ * Guard against multiple instances. Add destroy and update methods.
+ */
 
-		var createMirror = function(textarea) {
-			jQuery(textarea).after('<div class="autogrow-textarea-mirror"></div>');
-			return jQuery(textarea).next('.autogrow-textarea-mirror')[0];
-		}
+;(function ($) {
+    
+    function AutoGrow (element, options) {
+        var self = this;
+        
+        self.element = element;
 
-		var sendContentToMirror = function (textarea) {
-			mirror.innerHTML = String(textarea.value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br />') + '.<br/>.';
+        self.createMirror = function (textarea) {
+            $(textarea).after('<div class="autogrow-textarea-mirror"></div>');
+            return $(textarea).next('.autogrow-textarea-mirror')[0];
+        };
 
-			if (jQuery(textarea).height() != jQuery(mirror).height())
-				jQuery(textarea).height(jQuery(mirror).height());
-		}
+        self.sendContentToMirror = function (textarea) {
+            var mirror = self.mirror;
+            
+            mirror.innerHTML = String(textarea.value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br />') + '.<br/>.';
 
-		var growTextarea = function () {
-			sendContentToMirror(this);
-		}
+            if ($(textarea).height() != $(mirror).height())
+                $(textarea).height($(mirror).height());
+        };
 
+        self.growTextarea = function (textarea) {
+            self.sendContentToMirror(textarea);
+        };
+        
+        self.init();
+    }
+
+    AutoGrow.prototype.init = function () {
+        var self = this,
+            el = self.element;
+        
 		// Create a mirror
-		var mirror = createMirror(this);
+		var mirror = self.mirror = self.createMirror(el);
 		
 		// Style the mirror
 		mirror.style.display = 'none';
 		mirror.style.wordWrap = 'break-word';
 		mirror.style.whiteSpace = 'normal';
-		mirror.style.padding = jQuery(this).css('padding');
-		mirror.style.width = jQuery(this).css('width');
-		mirror.style.fontFamily = jQuery(this).css('font-family');
-		mirror.style.fontSize = jQuery(this).css('font-size');
-		mirror.style.lineHeight = jQuery(this).css('line-height');
+		mirror.style.padding = $(el).css('padding');
+		mirror.style.width = $(el).css('width');
+		mirror.style.fontFamily = $(el).css('font-family');
+		mirror.style.fontSize = $(el).css('font-size');
+		mirror.style.lineHeight = $(el).css('line-height');
 
 		// Style the textarea
-		this.style.overflow = "hidden";
-		this.style.minHeight = this.rows+"em";
+		el.style.overflow = "hidden";
+		el.style.minHeight = el.rows+"em";
 
 		// Bind the textarea's event
-		this.onkeyup = growTextarea;
-
+		$(el).on('input', function () { self.growTextarea(el); });
+        
 		// Fire the event for text already present
-		sendContentToMirror(this);
+		self.sendContentToMirror(el);
+    };
 
-	});
-};
+    AutoGrow.prototype.update = function () {
+        this.growTextarea(this.element);
+    };
+
+    $.fn.autoGrow = function (options) {
+        return this.each(function () {
+            if (!$.data(this, 'autoGrow')) {
+                $.data(this, 'autoGrow', new AutoGrow(this, options));
+            } else {
+                if (options === 'update') {
+                    $.data(this, 'autoGrow').update();
+                } else if (options === 'destroy') {
+                    $(this).off('input');
+                    $.data(this, 'autoGrow', null);
+                } else {
+                    $.data(this, 'autoGrow').update();
+                }
+            }
+        });
+    };
+    
+})($);
